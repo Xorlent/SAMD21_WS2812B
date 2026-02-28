@@ -151,7 +151,7 @@ void WS2812B::set(const char* color, uint8_t brightness)
         r = 255u;
     } else if (first == 'g' || first == 'G') {  // "green" or "G"
         g = 255u;
-    } else if (first == 'B' || (color[1] == 'l' && color[2] == 'u')) {  // "B" or "blue"
+    } else if (first == 'B' || color[2] == 'u') {  // "B" or "blue"
         b = 255u;
     } else if (first == 'p') {  // "purple"
         r = 128u;
@@ -170,11 +170,14 @@ void WS2812B::set(const char* color, uint8_t brightness)
         return;
     }
 
-    // Apply brightness
-    if (brightness != 0u && brightness != 255u) {
-        r = static_cast<uint8_t>((static_cast<uint16_t>(r) * brightness) / 255u);
-        g = static_cast<uint8_t>((static_cast<uint16_t>(g) * brightness) / 255u);
-        b = static_cast<uint8_t>((static_cast<uint16_t>(b) * brightness) / 255u);
+    // Apply brightness scaling
+    if (brightness == 0u) {
+        waitAndSend(0u, 0u, 0u);  // Skip math entirely
+        return;
+    } else if (brightness < 255u) {
+        r = static_cast<uint8_t>(((r * brightness) + 128) >> 8);
+        g = static_cast<uint8_t>(((g * brightness) + 128) >> 8);
+        b = static_cast<uint8_t>(((b * brightness) + 128) >> 8);
     }
 
     // Send the color data (wait + transmission + timestamp update)
