@@ -12,7 +12,7 @@
 #include <sam.h>     // SAMD21 peripheral register definitions (PORT, SysTick, etc.)
 
 // WS2812B reset/cooldown: keep data line LOW (reliable at ~200us total delay w/overhead))
-#define WS2812B_RESET_US  180u
+#define WS2812B_RESET_US  250u
 
 // ---------------------------------------------------------------------------
 // NOP-based timing - calibrated for 48 MHz
@@ -79,7 +79,7 @@ void WS2812B::sendByte(uint8_t data)
 // ---------------------------------------------------------------------------
 
 WS2812B::WS2812B()
-    : _setReg(nullptr), _clrReg(nullptr), _pinMask(0u), _initialized(false)
+    : _setReg(nullptr), _clrReg(nullptr), _pinMask(0u), _initialized(false), _lastTransmissionMicros(0ul)
 {}
 
 bool WS2812B::begin(uint8_t pin)
@@ -115,6 +115,14 @@ void WS2812B::set(const char* color, uint8_t brightness)
         return;
     }
 
+    // Wait for the reset period to elapse if needed since last transmission
+    if (_lastTransmissionMicros != 0ul) {
+        unsigned long elapsed = micros() - _lastTransmissionMicros;
+        if (elapsed < WS2812B_RESET_US) {
+            delayMicroseconds(WS2812B_RESET_US - elapsed);
+        }
+    }
+
     uint8_t r = 0u, g = 0u, b = 0u;
 
     // Use character checking for efficiency
@@ -130,7 +138,7 @@ void WS2812B::set(const char* color, uint8_t brightness)
             sendByte(0u);
             sendByte(0u);
             interrupts();
-            delayMicroseconds(WS2812B_RESET_US);
+            _lastTransmissionMicros = micros();
             return;
         }
     } else if (first == 'B') {  // "B"
@@ -157,7 +165,7 @@ void WS2812B::set(const char* color, uint8_t brightness)
         sendByte(0u);
         sendByte(0u);
         interrupts();
-        delayMicroseconds(WS2812B_RESET_US);
+        _lastTransmissionMicros = micros();
         return;
     }
 
@@ -177,7 +185,6 @@ void WS2812B::set(const char* color, uint8_t brightness)
     sendByte(b);
     interrupts();
 
-    // Hold data line low for the WS2812B reset window
-    // We use 300 µs to guarantee the LED latches the new colour before the next call.
-    delayMicroseconds(WS2812B_RESET_US);
+    // Save timestamp for reset period checking on next call
+    _lastTransmissionMicros = micros();
 }

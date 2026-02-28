@@ -35,6 +35,7 @@ private:
     volatile uint32_t *_clrReg;
     uint32_t           _pinMask;
     bool               _initialized;
+    unsigned long      _lastTransmissionMicros;
 
     // Transmit one byte MSB-first using cycle-accurate PORT toggling.
     // Must be called with interrupts disabled for reliability.
