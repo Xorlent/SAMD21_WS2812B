@@ -113,7 +113,7 @@ The library uses CPU cycle-accurate bit-banging calibrated for **48 MHz SAMD21**
 
 **Timing issues or flickering:**
 - This library is calibrated for 48 MHz SAMD21. Other clock speeds would require adjusting the NOP counts
-- Ensure no high-priority interrupts are running frequently (USB, timers, etc.)
+- Ensure no high-priority interrupts are running too frequently (USB, timers, etc.)
 
 **Compilation errors:**
 - Ensure your board is properly configured in Arduino IDE (Tools > Board > Arduino SAMD Boards)
