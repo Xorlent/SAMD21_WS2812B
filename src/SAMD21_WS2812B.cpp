@@ -149,10 +149,10 @@ void WS2812B::set(const char* color, uint8_t brightness)
     
     if (first == 'r' || first == 'R') {  // "red" or "R"
         r = 255u;
-    } else if (first == 'B' || color[2] == 'u') {  // "B" or "blue"
-        b = 255u;
     } else if (first == 'g' || first == 'G') {  // "green" or "G"
         g = 255u;
+    } else if (first == 'B' || color[2] == 'u') {  // "B" or "blue"
+        b = 255u;
     } else if (first == 'p') {  // "purple"
         r = 128u;
         b = 128u;
