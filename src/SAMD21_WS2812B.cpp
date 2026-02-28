@@ -75,6 +75,33 @@ void WS2812B::sendByte(uint8_t data)
 }
 
 // ---------------------------------------------------------------------------
+// waitAndSend – helper to enforce reset period and transmit data
+// ---------------------------------------------------------------------------
+inline void WS2812B::waitAndSend(uint8_t g, uint8_t r, uint8_t b)
+{
+    // Wait for the reset period to elapse if needed since last transmission.
+    // Check here (after any color processing) so computation time counts toward reset period.
+    if (_lastTransmissionMicros != 0ul) {
+        unsigned long elapsed = micros() - _lastTransmissionMicros;
+        if (elapsed < WS2812B_RESET_US) {
+            delayMicroseconds(WS2812B_RESET_US - elapsed);
+        }
+    }
+
+    // Send data - WS2812B expects GRB byte order
+    // Disabling interrupts ensures that no ISR (SysTick, USB, etc.) injects
+    // a mid-frame pause that the LED would interpret as a reset signal.
+    noInterrupts();
+    sendByte(g);
+    sendByte(r);
+    sendByte(b);
+    interrupts();
+
+    // Save timestamp for reset period checking on next call
+    _lastTransmissionMicros = micros();
+}
+
+// ---------------------------------------------------------------------------
 // Constructor / begin / destructor
 // ---------------------------------------------------------------------------
 
@@ -115,38 +142,15 @@ void WS2812B::set(const char* color, uint8_t brightness)
         return;
     }
 
-    // Wait for the reset period to elapse if needed since last transmission
-    if (_lastTransmissionMicros != 0ul) {
-        unsigned long elapsed = micros() - _lastTransmissionMicros;
-        if (elapsed < WS2812B_RESET_US) {
-            delayMicroseconds(WS2812B_RESET_US - elapsed);
-        }
-    }
-
     uint8_t r = 0u, g = 0u, b = 0u;
 
     // Use character checking for efficiency
     char first = color[0];
     
-    if (first == 'b') {
-        if (color[2] == 'u') {  // "blue"
-            b = 255u;
-        } else {  // "black" or unrecognized 'b' color
-            // Send all zeros directly (skip brightness calculation)
-            noInterrupts();
-            sendByte(0u);
-            sendByte(0u);
-            sendByte(0u);
-            interrupts();
-            _lastTransmissionMicros = micros();
-            return;
-        }
-    } else if (first == 'B') {  // "B"
-        b = 255u;
-    } else if (first == 'w') {  // "white"
-        r = g = b = 255u;
-    } else if (first == 'r' || first == 'R') {  // "red" or "R"
+    if (first == 'r' || first == 'R') {  // "red" or "R"
         r = 255u;
+    } else if (first == 'B' || color[2] == 'u') {  // "B" or "blue"
+        b = 255u;
     } else if (first == 'g' || first == 'G') {  // "green" or "G"
         g = 255u;
     } else if (first == 'p') {  // "purple"
@@ -158,14 +162,11 @@ void WS2812B::set(const char* color, uint8_t brightness)
     } else if (first == 'o') {  // "orange"
         r = 255u;
         g = 75u;
+    } else if (first == 'w') {  // "white"
+        r = g = b = 255u;
     } else {
-        // Unrecognized color - default to black
-        noInterrupts();
-        sendByte(0u);
-        sendByte(0u);
-        sendByte(0u);
-        interrupts();
-        _lastTransmissionMicros = micros();
+        // Unrecognized color or black
+        waitAndSend(0u, 0u, 0u);
         return;
     }
 
@@ -176,15 +177,6 @@ void WS2812B::set(const char* color, uint8_t brightness)
         b = static_cast<uint8_t>((static_cast<uint16_t>(b) * brightness) / 255u);
     }
 
-    // Send data - WS2812B expects GRB byte order
-    // Disabling interrupts ensures that no ISR (SysTick, USB, etc.) injects 
-    // a mid-frame pause that the LED would interpret as a reset signal.
-    noInterrupts();
-    sendByte(g);
-    sendByte(r);
-    sendByte(b);
-    interrupts();
-
-    // Save timestamp for reset period checking on next call
-    _lastTransmissionMicros = micros();
+    // Send the color data (wait + transmission + timestamp update)
+    waitAndSend(g, r, b);
 }

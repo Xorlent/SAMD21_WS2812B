@@ -40,6 +40,10 @@ private:
     // Transmit one byte MSB-first using cycle-accurate PORT toggling.
     // Must be called with interrupts disabled for reliability.
     void sendByte(uint8_t data);
+
+    // Wait for reset period if needed, then send GRB data and update timestamp.
+    // Inline to avoid call overhead.
+    inline void waitAndSend(uint8_t g, uint8_t r, uint8_t b);
 };
 
 #endif // SAMD21_WS2812B_H
